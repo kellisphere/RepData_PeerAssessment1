@@ -21,7 +21,7 @@ opts_chunk$set(echo = TRUE)
 Download the [data from here](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip), unzip necessary file into your working directory. 
 ```{r gettingdata}
 if(!file.exists('activity.csv')){
-    unzip('rep-data-activity.zip')
+    unzip('activity.zip')
 }
 data <- read.csv("activity.csv", header=TRUE, sep=',')
 ```

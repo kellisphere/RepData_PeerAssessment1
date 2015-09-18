@@ -80,7 +80,7 @@ library(lattice)</code></pre>
 <h3>Loading and preprocessing the data</h3>
 <p>Download the <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip">data from here</a>, unzip necessary file into your working directory.</p>
 <pre class="r"><code>if(!file.exists('activity.csv')){
-    unzip('rep-data-activity.zip')
+    unzip('activity.zip')
 }
 data &lt;- read.csv(&quot;activity.csv&quot;, header=TRUE, sep=',')</code></pre>
 <p>Preprocessing Review data and format - convert date format using lubridate</p>
