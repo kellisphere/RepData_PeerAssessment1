@@ -1,25 +1,160 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Assignment 1 Reproducible Research"
+output: html_document
 ---
 
+###Preparation for assignment:
+```{r loadlibraries}
+library(knitr)
+library(ggplot2)
+library(plyr)
+library(data.table)
+library(lattice)
+```
 
-## Loading and preprocessing the data
+###Set necessary defaults:
+```{r globalsettings}
+opts_chunk$set(echo = TRUE)
+```
 
+###Loading and preprocessing the data
+Download the [data from here](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip), unzip necessary file into your working directory. 
+```{r gettingdata}
+if(!file.exists('activity.csv')){
+    unzip('rep-data-activity.zip')
+}
+data <- read.csv("activity.csv", header=TRUE, sep=',')
+```
 
+Preprocessing
+Review data and format - convert date format using lubridate
+```{r dataprocessing}
+str(data)
+head(data)
+```
 
-## What is mean total number of steps taken per day?
+### Calculate the total number of steps taken per day
+```{r totalstepsperday}
+totalsteps <- aggregate(steps ~ date, data, sum)
+```
 
+### Make a histogram of the total number of steps taken each day
+```{r stepsperdaygraph}
+ggplot(totalsteps, aes(x = steps)) +
+        geom_histogram(fill = "red", binwidth = 500) +
+        labs(title="Histogram of total number of steps taken each day", 
+             x = "Number of steps each day", y = "Number (count) of time in a day") + theme_bw()
+```
 
+### Calculate and report the mean and median of the total number of steps taken per day
+```{r meanandmedian}
+stepsperdayMean <- mean(totalsteps$steps, na.rm=TRUE)
+stepsperdayMedian <- median(totalsteps$steps, na.rm=TRUE)
+```
+The mean is `r stepsperdayMean` and the median is `r stepsperdayMedian`.
 
 ## What is the average daily activity pattern?
 
+Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)  
+
+```{r timeseriesplot}
+averages <- aggregate(x=list(steps=data$steps), by=list(interval=data$interval),
+                      FUN=mean, na.rm=TRUE)
+ggplot(data=averages, aes(x=interval, y=steps)) +
+    geom_line() +
+    xlab("5-minute interval") +
+    ylab("average number of steps taken")
+```
 
 
-## Imputing missing values
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r maximumsteps}
+maxsteps <- averages[which.max(averages$steps),]
+```
+The max interval and steps result `r maxsteps`. The most active 5-minute interval is between 8:35 a.m. and 8:40 a.m. with an average of about 206 steps.
+
+### Imputing missing values
+Calculate and report the total number of missing values in the dataset
+```{r missingvalues}
+missingvalues <- sum(is.na(data$steps))
+```
+
+The total missing number of values in the data set is `r missingvalues`.
+
+Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+Strategy: create a new dataset using the mean values of its 5-minute interval and verify that there are no missing values.
+
+```{r nomissingvalues}
+nomissingdata <- function(data, pervalue) {
+        naset <- which(is.na(data$steps))
+        nafill <- unlist(lapply(naset, FUN=function(idx){
+                interval = data[idx,]$interval
+                pervalue[pervalue$interval == interval,]$steps
+        }))
+        stepsfill <- data$steps
+        stepsfill[naset] <- nafill
+        stepsfill
+}
+nonasdata <-data.frame(
+        steps = nomissingdata(data, averages),
+        date = data$date,
+        interval = data$interval)
+str(nonasdata)
+anynas <- sum(is.na(nonasdata))
+```
+The number of missing data in the new data set is `r anynas`.
+
+### Make a histogram of the total number of steps taken each day with the new dataset (nonasdata)
+
+```{r histogramnonasdata}
+totalnonassteps <- aggregate(steps ~ date, nonasdata, sum)
+ggplot(totalnonassteps, aes(x = steps)) +
+        geom_histogram(fill = "blue", binwidth = 500) +
+        labs(title="Histogram of total number of steps taken each day", 
+             x = "Number of steps each day", y = "Number (count) of time in a day") + theme_bw()
+```
+Calculate and report the mean and median total number of steps taken per day
+```{r nonasmeanandmedian}
+totalnonassteps <- tapply(nonasdata$steps, nonasdata$date, FUN=sum)
+stepsnonasMean <- mean(totalnonassteps)
+stepsnonasMedian <- median(totalnonassteps)
+```
+The mean with no NA values is `r stepsnonasMean` and the median is `r stepsnonasMedian`.   
+
+What is the impact of imputing missing data on the estimates of the total daily number of steps?  
+
+There is a minimial difference between this new result and the previous result, there was a variation between the mean and median previously: The prior mean is `r stepsperdayMean` and the median is `r stepsperdayMedian`.
 
 
+###Are there differences in activity patterns between weekdays and weekends?
 
-## Are there differences in activity patterns between weekdays and weekends?
+Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+```{r breakdownweek}
+
+dataweekday <- nonasdata
+
+weekend <- weekdays(as.Date(dataweekday$date)) %in% c("Saturday", "Sunday")
+
+dataweekday$daytype <- "weekday"
+dataweekday$daytype[weekend == TRUE] <- "weekend"
+
+dataweekday$daytype <-as.factor(dataweekday$daytype)
+
+str(dataweekday)
+head(dataweekday)
+```
+
+### Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r graphweekdays}
+weekdayinterval <- aggregate(steps ~ interval + daytype, dataweekday, mean)
+names(weekdayinterval)[3] <- "stepsmean"
+xyplot (stepsmean ~ interval | daytype,
+        weekdayinterval,
+        type = "l",
+        layout = c(1,2),
+        main = "Time series plot of the 5-minute interval",
+        xlab = "5-minute interval",
+        ylab = "Average number of steps taken \n broken out by weekend or weekday")
+```
