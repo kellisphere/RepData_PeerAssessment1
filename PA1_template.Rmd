@@ -158,3 +158,4 @@ xyplot (stepsmean ~ interval | daytype,
         xlab = "5-minute interval",
         ylab = "Average number of steps taken \n broken out by weekend or weekday")
 ```
+Yes, there is a difference in activity patterns between weekend and weekdays. The weekend does not peak as high early in the day, but has a higher activity average throughout the intervals. 
